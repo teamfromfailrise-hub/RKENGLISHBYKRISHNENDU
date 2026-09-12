@@ -172,6 +172,26 @@ export default function Home() {
     });
   }
 
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    setConfirmConfig({
+      title: `Delete ${ids.length} writing${ids.length === 1 ? '' : 's'}?`,
+      message: 'These will be permanently removed. This cannot be undone.',
+      okLabel: 'Delete',
+      run: async () => {
+        try {
+          const res = await api('/api/writings', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+          setWritings((ws) => ws.filter((x) => !selectedIds.has(x.id)));
+          setSelectMode(false);
+          setSelectedIds(new Set());
+          showToast(`Deleted ${res.deleted} writing${res.deleted === 1 ? '' : 's'}.`);
+        } catch (e) {
+          showToast("Couldn't delete — " + e.message);
+        }
+      }
+    });
+  }
+
   const viewingWriting = writings.find((w) => w.id === viewingId) || null;
   const selectedWritings = writings.filter((w) => selectedIds.has(w.id));
 
@@ -301,6 +321,9 @@ export default function Home() {
           <span>{selectedIds.size} selected</span>
           <div className="bulk-actions">
             <button className="bb-btn" onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }}>Cancel</button>
+            <button className="bb-btn" onClick={handleBulkDelete} style={{ color: '#A3323D' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0l-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6" /></svg>Delete
+            </button>
             <button className="bb-btn" onClick={() => exportPdf(selectedWritings, templates)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 20h16" /></svg>PDF
             </button>

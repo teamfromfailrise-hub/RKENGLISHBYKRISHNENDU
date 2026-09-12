@@ -143,6 +143,34 @@ export default function SettingsPage() {
     }
   }
 
+  function restoreFromBackup(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow picking the same file again later
+    if (!file) return;
+    setConfirmConfig({
+      title: 'Restore from this backup?',
+      message: `This will add or overwrite writings from "${file.name}". Writings already saved that aren't in the backup are left alone — nothing is deleted.`,
+      okLabel: 'Restore',
+      run: async () => {
+        setExporting(true);
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          const result = await api('/api/writings/restore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(parsed),
+          });
+          showToast(`Restored ${result.restored} writing${result.restored === 1 ? '' : 's'}.${result.skipped ? ` (${result.skipped} skipped — missing required fields.)` : ''}`);
+        } catch (err) {
+          showToast("Couldn't restore — " + (err.message || 'the file may not be a valid backup.'));
+        } finally {
+          setExporting(false);
+        }
+      },
+    });
+  }
+
   async function downloadEverythingAsPdf() {
     setExporting(true);
     try {
@@ -273,6 +301,14 @@ export default function SettingsPage() {
           <button className="secondary-btn" disabled={exporting} onClick={downloadEverythingAsPdf}>
             {exporting ? 'Working…' : 'Download everything as one PDF'}
           </button>
+          <label className="secondary-btn" style={{ display: 'inline-block', textAlign: 'center', cursor: exporting ? 'default' : 'pointer', opacity: exporting ? 0.6 : 1 }}>
+            {exporting ? 'Working…' : 'Restore from a JSON backup'}
+            <input type="file" accept="application/json,.json" onChange={restoreFromBackup} disabled={exporting} style={{ display: 'none' }} />
+          </label>
+          <p style={{ fontSize: 12, color: 'var(--text-soft)', lineHeight: 1.5, marginTop: 8 }}>
+            Use a file from "Download full backup (JSON)" above. Restoring never deletes anything — it only
+            adds writings that are missing and refreshes ones that already exist.
+          </p>
         </div>
 
         <div className="settings-section">
