@@ -1,24 +1,96 @@
 'use client';
-import { useMemo, useRef, useState } from 'react';
-import { WRITING_TYPES, CLASS_OPTIONS, BOARD_OPTIONS, LETTER_FORMATS, ADDRESS_BLOCK_FORMATS, openingsFor, closingsFor } from '../lib/constants';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { WRITING_TYPES, CLASS_OPTIONS, BOARD_OPTIONS, LETTER_FORMATS, ADDRESS_BLOCK_FORMATS, RECIPIENT_PICKER_FORMATS, OFFICIAL_RECIPIENTS, openingsFor, closingsFor, uid } from '../lib/constants';
 import ScanCropModal from './ScanCropModal';
 import { ConfirmDialog } from './Feedback';
 import VoiceButton from './VoiceButton';
 
 const BLANK = {
   title: '', board: 'English Medium', class: '', type: 'paragraph', chapter: '', body: '',
-  recipientName: '', receiverAddress: '', place: '', opening: '', closing: '', salutation: '',
+  recipientName: '', recipientType: '', receiverAddress: '', place: '', opening: '', closing: '', salutation: '',
   senderName: '', senderAddress: '', instName: '', noticeSubject: '', issuedBy: ''
 };
 
-export default function WritingForm({ existing, presets, templates, globalDefaults, onSave, onCancel, showToast }) {
+// If she gets called away mid-writing — a phone call, a knock at the door, the browser
+// closing by accident — nothing typed is lost. A new (unsaved) writing quietly autosaves
+// here, and is offered back the next time she opens "Add a writing".
+const DRAFT_KEY = 'rk_new_writing_draft_v1';
+
+export default function WritingForm({ existing, presets, templates, globalDefaults, recipients, onSaveRecipient, onSave, onCancel, showToast }) {
   const isEdit = !!(existing && existing.id);
   const [form, setForm] = useState(() => (existing ? { ...BLANK, ...existing } : { ...BLANK }));
   const [type, setType] = useState(existing?.type || 'paragraph');
   const [scanImage, setScanImage] = useState(null);
   const [replaceConfirm, setReplaceConfirm] = useState(false);
+  const [recipientPicker, setRecipientPicker] = useState('');
+  const [draftRestored, setDraftRestored] = useState(false);
   const fileInputRef = useRef(null);
   const meta = WRITING_TYPES[type];
+
+  // Offer back an unsaved draft, once, when opening a brand-new (not edit) form.
+  useEffect(() => {
+    if (isEdit) return;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft?.form && (draft.form.title?.trim() || draft.form.body?.trim())) {
+        setForm({ ...BLANK, ...draft.form });
+        setType(draft.type || 'paragraph');
+        setDraftRestored(true);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Quietly autosave every change, debounced, while adding something new.
+  useEffect(() => {
+    if (isEdit) return;
+    const t = setTimeout(() => {
+      try {
+        if (form.title.trim() || form.body.trim()) {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, type }));
+        }
+      } catch {}
+    }, 600);
+    return () => clearTimeout(t);
+  }, [form, type, isEdit]);
+
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
+  }
+
+  function discardDraft() {
+    clearDraft();
+    setForm({ ...BLANK });
+    setType('paragraph');
+    setDraftRestored(false);
+  }
+
+  function applyRecipientChoice(value) {
+    setRecipientPicker(value);
+    if (!value) return;
+    if (value.startsWith('saved:')) {
+      const saved = (recipients || []).find((r) => r.id === value.slice(6));
+      if (!saved) return;
+      setForm((f) => ({ ...f, recipientType: saved.type || '', recipientName: saved.recipientName || '', receiverAddress: saved.receiverAddress || f.receiverAddress }));
+    } else if (value.startsWith('preset:')) {
+      const preset = OFFICIAL_RECIPIENTS.find((r) => r.key === value.slice(7));
+      if (!preset) return;
+      setForm((f) => ({ ...f, recipientType: preset.key, recipientName: preset.key === 'other' ? f.recipientName : preset.recipientName }));
+    }
+  }
+
+  function handleSaveRecipient() {
+    if (!form.recipientName.trim()) { showToast('Add a recipient name first.'); return; }
+    onSaveRecipient?.({
+      id: uid(),
+      type: form.recipientType || 'other',
+      label: form.recipientName.trim(),
+      recipientName: form.recipientName.trim(),
+      receiverAddress: form.receiverAddress || ''
+    });
+  }
 
   function applyDefaultsForType(nextType) {
     if (isEdit) return; // never clobber an existing writing's own values
@@ -80,6 +152,7 @@ export default function WritingForm({ existing, presets, templates, globalDefaul
     if (!form.title.trim()) { showToast('Please add a title.'); return; }
     if (!form.class) { showToast('Please choose a class.'); return; }
     if (!form.body.trim()) { showToast('Please write or scan the body text.'); return; }
+    if (!isEdit) clearDraft();
     onSave({ ...form, type, title: form.title.trim(), body: form.body.trim() });
   }
 
@@ -95,6 +168,12 @@ export default function WritingForm({ existing, presets, templates, globalDefaul
         <h2>{isEdit ? 'Edit writing' : 'Add a writing'}</h2>
       </div>
       <div className="sheet-body">
+        {draftRestored && (
+          <div className="draft-banner">
+            <span>Restored an unsaved draft from before — carry on, or start fresh.</span>
+            <button type="button" className="link-btn" onClick={discardDraft}>Discard draft</button>
+          </div>
+        )}
         <div className="section-title">Basics</div>
         <div className="field">
           <div className="field-label-row">
@@ -158,6 +237,23 @@ export default function WritingForm({ existing, presets, templates, globalDefaul
         {LETTER_FORMATS.includes(type) && (
           <>
             <div className="section-title">Letter details</div>
+            {RECIPIENT_PICKER_FORMATS.includes(type) && (
+              <div className="field">
+                <label>Send to (official letters — pick to fill in automatically)</label>
+                <select value={recipientPicker} onChange={(e) => applyRecipientChoice(e.target.value)}>
+                  <option value="">— choose, or just type below —</option>
+                  {recipients && recipients.length > 0 && (
+                    <optgroup label="★ Your saved recipients">
+                      {recipients.map((r) => <option key={r.id} value={'saved:' + r.id}>{r.label}</option>)}
+                    </optgroup>
+                  )}
+                  <optgroup label="Common official recipients">
+                    {OFFICIAL_RECIPIENTS.map((r) => <option key={r.key} value={'preset:' + r.key}>{r.label}</option>)}
+                  </optgroup>
+                </select>
+                <div className="hint">Fills in the recipient line and, for a saved one, the full address too — the letter's own layout never changes, only who it's addressed to.</div>
+              </div>
+            )}
             <div className="field">
               <label>{meta.format === 'editor_letter' ? 'Newspaper name' : "Recipient's name / designation"}</label>
               <input type="text" value={form.recipientName} onChange={(e) => set('recipientName', e.target.value)}
@@ -170,7 +266,12 @@ export default function WritingForm({ existing, presets, templates, globalDefaul
               <div className="field">
                 <label>Receiver's address (one line each, optional)</label>
                 <textarea style={{ minHeight: 80 }} value={form.receiverAddress} onChange={(e) => set('receiverAddress', e.target.value)}
-                  placeholder={'1st floor, LMJ Chambers,\n15, Hemanta Basu Sarani,\nKolkata 700 001'} />
+                  placeholder={OFFICIAL_RECIPIENTS.find((r) => r.key === form.recipientType)?.addressHint || '1st floor, LMJ Chambers,\n15, Hemanta Basu Sarani,\nKolkata 700 001'} />
+                {RECIPIENT_PICKER_FORMATS.includes(type) && form.recipientName.trim() && (
+                  <button type="button" className="link-btn" style={{ marginTop: 8 }} onClick={handleSaveRecipient}>
+                    💾 Save this recipient for next time
+                  </button>
+                )}
               </div>
             )}
             {meta.format !== 'personal_letter' && (

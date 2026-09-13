@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '../../../lib/db';
 
-const ALLOWED_KEYS = new Set(['presets', 'templates']);
+const ALLOWED_KEYS = new Set(['presets', 'templates', 'recipients']);
 
 export async function GET(req) {
   try {

@@ -1,6 +1,6 @@
 'use client';
 import { WRITING_TYPES, todayStr, paragraphs, textLines } from '../lib/constants';
-import { exportPdf, shareOnWhatsapp } from '../lib/pdf';
+import { exportPdf, shareOnWhatsapp, printPdf } from '../lib/pdf';
 
 function DateLine({ layout }) {
   return <div className="p-date" style={{ textAlign: layout.dateAlign || 'right' }}>{layout.datePosition === 'bottom' ? 'Dated ' : ''}{todayStr()}</div>;
@@ -89,6 +89,7 @@ function PaperPreview({ w, layout }) {
 
 export default function WritingViewer({ w, templates, onEdit, onDelete, onDuplicate, onClose, showToast }) {
   const wordCount = (w.body || '').trim().split(/\s+/).filter(Boolean).length;
+  const readingMins = Math.max(1, Math.round(wordCount / 130));
   const layout = templates?.[w.type]?.layout || {};
   return (
     <div className="sheet">
@@ -106,7 +107,7 @@ export default function WritingViewer({ w, templates, onEdit, onDelete, onDuplic
       </div>
       <div className="sheet-body">
         <PaperPreview w={w} layout={layout} />
-        <div className="word-count">{wordCount} {wordCount === 1 ? 'word' : 'words'}</div>
+        <div className="word-count">{wordCount} {wordCount === 1 ? 'word' : 'words'} · about {readingMins} min read aloud</div>
         <div className="viewer-actions">
           <button className="icon-text-btn" onClick={() => exportPdf([w], templates)}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 20h16" /></svg>
@@ -125,6 +126,24 @@ export default function WritingViewer({ w, templates, onEdit, onDelete, onDuplic
           <button className="icon-text-btn" onClick={onDuplicate}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 012-2h10" /></svg>
             Duplicate
+          </button>
+          <button className="icon-text-btn" onClick={() => printPdf([w], templates)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2M6 14h12v7H6z" /></svg>
+            Print
+          </button>
+          <button
+            className="icon-text-btn"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(w.body);
+                showToast('Writing copied to clipboard.');
+              } catch {
+                showToast("Couldn't copy — your browser may not allow it here.");
+              }
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 012-2h10" /></svg>
+            Copy text
           </button>
         </div>
       </div>

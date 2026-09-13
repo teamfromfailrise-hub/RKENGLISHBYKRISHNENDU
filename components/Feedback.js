@@ -1,8 +1,13 @@
 'use client';
 
-export function Toast({ message }) {
+export function Toast({ message, action }) {
   if (!message) return null;
-  return <div className="toast">{message}</div>;
+  return (
+    <div className="toast">
+      <span>{message}</span>
+      {action && <button type="button" className="toast-action" onClick={action.onClick}>{action.label}</button>}
+    </div>
+  );
 }
 
 export function ConfirmDialog({ config, onCancel, onConfirm }) {

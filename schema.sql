@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS writings (
   type           text NOT NULL,
   body           text NOT NULL,
   recipient_name text DEFAULT '',
+  recipient_type text DEFAULT '',
   receiver_address text DEFAULT '',
   place          text DEFAULT '',
   opening        text DEFAULT '',
@@ -22,6 +23,8 @@ CREATE TABLE IF NOT EXISTS writings (
   notice_subject text DEFAULT '',
   issued_by      text DEFAULT '',
   is_favorite    boolean NOT NULL DEFAULT false,
+  is_deleted     boolean NOT NULL DEFAULT false,
+  deleted_at     bigint,
   created_at     bigint NOT NULL,
   updated_at     bigint NOT NULL
 );
@@ -30,9 +33,11 @@ CREATE INDEX IF NOT EXISTS idx_writings_board ON writings (board);
 CREATE INDEX IF NOT EXISTS idx_writings_class ON writings (class);
 CREATE INDEX IF NOT EXISTS idx_writings_type ON writings (type);
 CREATE INDEX IF NOT EXISTS idx_writings_updated ON writings (updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_writings_deleted ON writings (is_deleted);
 
 -- Single generic settings store: one row for remembered "last used" defaults (key = 'presets'),
--- one row for her own custom opening/closing phrases and format defaults (key = 'templates').
+-- one row for her own custom opening/closing phrases and format defaults (key = 'templates'),
+-- one row for her saved address book of recurring official recipients (key = 'recipients').
 CREATE TABLE IF NOT EXISTS app_settings (
   key  text PRIMARY KEY,
   data jsonb NOT NULL DEFAULT '{}'::jsonb

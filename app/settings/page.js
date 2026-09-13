@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { LETTER_FORMATS, LEARNABLE_FORMATS, WRITING_TYPES } from '../../lib/constants';
+import { LETTER_FORMATS, LEARNABLE_FORMATS, WRITING_TYPES, OFFICIAL_RECIPIENTS, uid } from '../../lib/constants';
 import { Toast, ConfirmDialog } from '../../components/Feedback';
 import { buildPdf } from '../../lib/pdf';
 import LearnFormatModal from '../../components/LearnFormatModal';
@@ -17,6 +17,8 @@ async function api(url, opts) {
 export default function SettingsPage() {
   const [templates, setTemplates] = useState({ __global: {} });
   const [presets, setPresets] = useState({});
+  const [recipients, setRecipients] = useState([]);
+  const [writings, setWritings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState('');
   const [confirmConfig, setConfirmConfig] = useState(null);
@@ -24,15 +26,26 @@ export default function SettingsPage() {
   const [exporting, setExporting] = useState(false);
   const [learningType, setLearningType] = useState(null); // which type's LearnFormatModal is open
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [newRecipient, setNewRecipient] = useState({ label: '', type: 'other', recipientName: '', receiverAddress: '' });
+  const [trash, setTrash] = useState(null); // null = not loaded yet, [] = loaded & empty
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashLoading, setTrashLoading] = useState(false);
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 2600); }
 
   useEffect(() => {
     (async () => {
       try {
-        const [t, p] = await Promise.all([api('/api/settings?key=templates'), api('/api/settings?key=presets')]);
+        const [t, p, r, w] = await Promise.all([
+          api('/api/settings?key=templates'),
+          api('/api/settings?key=presets'),
+          api('/api/settings?key=recipients'),
+          api('/api/writings')
+        ]);
         setTemplates(t && Object.keys(t).length ? t : { __global: {} });
         setPresets(p || {});
+        setRecipients(Array.isArray(r) ? r : (r?.list || []));
+        setWritings(w || []);
       } catch (e) {
         showToast("Couldn't load settings.");
       } finally {
@@ -40,6 +53,52 @@ export default function SettingsPage() {
       }
     })();
   }, []);
+
+  async function saveRecipients(next) {
+    setRecipients(next);
+    try { await api('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'recipients', data: next }) }); } catch (e) { showToast("Couldn't save — " + e.message); }
+  }
+
+  function addRecipient() {
+    if (!newRecipient.recipientName.trim()) { showToast('Add a recipient name first.'); return; }
+    const entry = { id: uid(), type: newRecipient.type, label: newRecipient.label.trim() || newRecipient.recipientName.trim(), recipientName: newRecipient.recipientName.trim(), receiverAddress: newRecipient.receiverAddress };
+    saveRecipients([...recipients, entry]);
+    setNewRecipient({ label: '', type: 'other', recipientName: '', receiverAddress: '' });
+    showToast('Recipient saved — pick it from the dropdown next time you write to them.');
+  }
+
+  function removeRecipient(id) {
+    setConfirmConfig({
+      title: 'Remove this saved recipient?',
+      message: 'This only removes it from your quick-pick list. Any writings already addressed to them are not affected.',
+      okLabel: 'Remove',
+      run: () => saveRecipients(recipients.filter((r) => r.id !== id))
+    });
+  }
+
+  async function loadTrash() {
+    setTrashOpen((o) => !o);
+    if (trash !== null) return;
+    setTrashLoading(true);
+    try {
+      const rows = await api('/api/writings?trash=1');
+      setTrash(rows || []);
+    } catch (e) {
+      showToast("Couldn't load the Trash — " + e.message);
+    } finally {
+      setTrashLoading(false);
+    }
+  }
+
+  async function restoreFromTrash(w) {
+    try {
+      await api(`/api/writings/${w.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ restore: true }) });
+      setTrash((t) => (t || []).filter((x) => x.id !== w.id));
+      showToast(`"${w.title}" restored to your shelf.`);
+    } catch (e) {
+      showToast("Couldn't restore — " + e.message);
+    }
+  }
 
   async function saveTemplates(next) {
     setTemplates(next);
@@ -143,34 +202,6 @@ export default function SettingsPage() {
     }
   }
 
-  function restoreFromBackup(e) {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // allow picking the same file again later
-    if (!file) return;
-    setConfirmConfig({
-      title: 'Restore from this backup?',
-      message: `This will add or overwrite writings from "${file.name}". Writings already saved that aren't in the backup are left alone — nothing is deleted.`,
-      okLabel: 'Restore',
-      run: async () => {
-        setExporting(true);
-        try {
-          const text = await file.text();
-          const parsed = JSON.parse(text);
-          const result = await api('/api/writings/restore', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(parsed),
-          });
-          showToast(`Restored ${result.restored} writing${result.restored === 1 ? '' : 's'}.${result.skipped ? ` (${result.skipped} skipped — missing required fields.)` : ''}`);
-        } catch (err) {
-          showToast("Couldn't restore — " + (err.message || 'the file may not be a valid backup.'));
-        } finally {
-          setExporting(false);
-        }
-      },
-    });
-  }
-
   async function downloadEverythingAsPdf() {
     setExporting(true);
     try {
@@ -195,6 +226,7 @@ export default function SettingsPage() {
     <div id="app">
       <div className="app-header">
         <Link href="/" className="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg></Link>
+        <div className="app-icon"><img src="/icons/icon-192.png" alt="RK English" width={52} height={52} /></div>
         <div className="app-titles"><h1>Settings</h1><p>Make the format your own</p></div>
       </div>
 
@@ -206,6 +238,16 @@ export default function SettingsPage() {
             through her book once and teach RK English all {LEARNABLE_FORMATS.length} formats in one guided pass.
           </p>
           <button className="primary-btn" onClick={() => setWizardOpen(true)}>Start guided setup</button>
+        </div>
+
+        <div className="settings-section stats-section">
+          <h3>At a glance</h3>
+          <div className="stats-grid">
+            <div className="stat-tile"><div className="stat-num">{writings.length}</div><div className="stat-label">Writings on the shelf</div></div>
+            <div className="stat-tile"><div className="stat-num">{writings.filter((w) => w.is_favorite).length}</div><div className="stat-label">★ Favourites</div></div>
+            <div className="stat-tile"><div className="stat-num">{new Set(writings.map((w) => w.class)).size}</div><div className="stat-label">Classes in use</div></div>
+            <div className="stat-tile"><div className="stat-num">{new Set(writings.map((w) => w.type)).size}</div><div className="stat-label">Writing types used</div></div>
+          </div>
         </div>
 
         <div className="settings-section">
@@ -290,6 +332,72 @@ export default function SettingsPage() {
         ))}
 
         <div className="settings-section">
+          <h3>Saved recipients</h3>
+          <p style={{ fontSize: 13, color: 'var(--text-soft)', lineHeight: 1.5, marginBottom: 12 }}>
+            Type a recurring official recipient's full address once — the Headmaster, the local BDO office,
+            the Gram Panchayat — and pick it from a dropdown every time after that, for any class's letter.
+          </p>
+          {recipients.length > 0 && (
+            <div className="recipient-list">
+              {recipients.map((r) => (
+                <div className="recipient-row" key={r.id}>
+                  <div>
+                    <div className="recipient-name">{r.label}</div>
+                    {r.receiverAddress && <div className="recipient-addr">{r.receiverAddress.split('\n').join(', ')}</div>}
+                  </div>
+                  <button className="icon-btn danger" onClick={() => removeRecipient(r.id)} aria-label="Remove">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="field"><label>Designation</label>
+            <select value={newRecipient.type} onChange={(e) => setNewRecipient((n) => ({ ...n, type: e.target.value, recipientName: OFFICIAL_RECIPIENTS.find((r) => r.key === e.target.value)?.recipientName || n.recipientName }))}>
+              {OFFICIAL_RECIPIENTS.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+            </select>
+          </div>
+          <div className="field"><label>Recipient name / designation (as it should print)</label>
+            <input type="text" value={newRecipient.recipientName} onChange={(e) => setNewRecipient((n) => ({ ...n, recipientName: e.target.value }))} placeholder="e.g. The Headmaster, Sunrise Public School" />
+          </div>
+          <div className="field"><label>Full address (one line each)</label>
+            <textarea style={{ minHeight: 70 }} value={newRecipient.receiverAddress} onChange={(e) => setNewRecipient((n) => ({ ...n, receiverAddress: e.target.value }))} placeholder={'Sunrise Public School,\nMain Road,\nHaldia, Purba Medinipur, 721657'} />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}><label>Short label for the list (optional)</label>
+            <input type="text" value={newRecipient.label} onChange={(e) => setNewRecipient((n) => ({ ...n, label: e.target.value }))} placeholder="e.g. Our School Headmaster" />
+          </div>
+          <button className="secondary-btn" onClick={addRecipient}>Save this recipient</button>
+        </div>
+
+        <div className="settings-section">
+          <h3>Trash</h3>
+          <p style={{ fontSize: 13, color: 'var(--text-soft)', lineHeight: 1.5, marginBottom: 12 }}>
+            Nothing is ever permanently erased. Anything deleted from the shelf lands here and can be
+            restored, for as long as you keep using the app.
+          </p>
+          <button className="secondary-btn" onClick={loadTrash}>{trashOpen ? 'Hide Trash' : 'Open Trash'}</button>
+          {trashOpen && (
+            trashLoading ? (
+              <div className="loading-row" style={{ padding: '14px 0' }}>Loading Trash…</div>
+            ) : (trash && trash.length > 0) ? (
+              <div className="recipient-list" style={{ marginTop: 12 }}>
+                {trash.map((w) => (
+                  <div className="recipient-row" key={w.id}>
+                    <div>
+                      <div className="recipient-name">{w.title}</div>
+                      <div className="recipient-addr">{WRITING_TYPES[w.type]?.label || w.type} · Class {w.class}</div>
+                    </div>
+                    <button className="secondary-btn" style={{ padding: '7px 12px', fontSize: 12.5 }} onClick={() => restoreFromTrash(w)}>Restore</button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: 13, color: 'var(--text-soft)', marginTop: 10 }}>The Trash is empty.</p>
+            )
+          )}
+        </div>
+
+        <div className="settings-section">
           <h3>Backup &amp; export</h3>
           <p style={{ fontSize: 13, color: 'var(--text-soft)', lineHeight: 1.5, marginBottom: 12 }}>
             Vercel also takes an automatic daily snapshot in the background. These two buttons let you take
@@ -301,14 +409,6 @@ export default function SettingsPage() {
           <button className="secondary-btn" disabled={exporting} onClick={downloadEverythingAsPdf}>
             {exporting ? 'Working…' : 'Download everything as one PDF'}
           </button>
-          <label className="secondary-btn" style={{ display: 'inline-block', textAlign: 'center', cursor: exporting ? 'default' : 'pointer', opacity: exporting ? 0.6 : 1 }}>
-            {exporting ? 'Working…' : 'Restore from a JSON backup'}
-            <input type="file" accept="application/json,.json" onChange={restoreFromBackup} disabled={exporting} style={{ display: 'none' }} />
-          </label>
-          <p style={{ fontSize: 12, color: 'var(--text-soft)', lineHeight: 1.5, marginTop: 8 }}>
-            Use a file from "Download full backup (JSON)" above. Restoring never deletes anything — it only
-            adds writings that are missing and refreshes ones that already exist.
-          </p>
         </div>
 
         <div className="settings-section">

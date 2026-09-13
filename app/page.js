@@ -22,8 +22,9 @@ export default function Home() {
   const [presets, setPresets] = useState({});
   const [templates, setTemplates] = useState({});
   const [globalDefaults, setGlobalDefaults] = useState({});
+  const [recipients, setRecipients] = useState([]);
 
-  const [filters, setFilters] = useState({ board: '', cls: '', type: '', chapter: '', q: '', favOnly: false });
+  const [filters, setFilters] = useState({ board: '', cls: '', type: '', chapter: '', q: '', favOnly: false, sort: 'newest' });
   const [showFilters, setShowFilters] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -33,26 +34,39 @@ export default function Home() {
   const [viewingId, setViewingId] = useState(null);
 
   const [toast, setToast] = useState('');
+  const [toastAction, setToastAction] = useState(null);
   const [confirmConfig, setConfirmConfig] = useState(null);
 
   function showToast(msg, ms = 2800) {
     setToast(msg);
+    setToastAction(null);
     window.clearTimeout(showToast._t);
     showToast._t = window.setTimeout(() => setToast(''), ms);
+  }
+
+  // A toast with an "Undo" button, for anything reversible — mainly moving something to
+  // Trash. Gives her a five-second, one-tap way back without ever leaving the shelf.
+  function showUndoToast(msg, undo, ms = 6000) {
+    setToast(msg);
+    setToastAction({ label: 'Undo', onClick: () => { undo(); setToast(''); setToastAction(null); } });
+    window.clearTimeout(showToast._t);
+    showToast._t = window.setTimeout(() => { setToast(''); setToastAction(null); }, ms);
   }
 
   useEffect(() => {
     (async () => {
       try {
-        const [w, presetData, templateData] = await Promise.all([
+        const [w, presetData, templateData, recipientData] = await Promise.all([
           api('/api/writings'),
           api('/api/settings?key=presets'),
-          api('/api/settings?key=templates')
+          api('/api/settings?key=templates'),
+          api('/api/settings?key=recipients')
         ]);
         setWritings(w.map(normalizeRow));
         setPresets(presetData || {});
         setTemplates(templateData || {});
         setGlobalDefaults(templateData?.__global || {});
+        setRecipients(Array.isArray(recipientData) ? recipientData : (recipientData?.list || []));
       } catch (e) {
         setLoadError(e.message);
       } finally {
@@ -65,6 +79,7 @@ export default function Home() {
     return {
       ...row,
       recipientName: row.recipient_name ?? row.recipientName ?? '',
+      recipientType: row.recipient_type ?? row.recipientType ?? '',
       receiverAddress: row.receiver_address ?? row.receiverAddress ?? '',
       senderName: row.sender_name ?? row.senderName ?? '',
       senderAddress: row.sender_address ?? row.senderAddress ?? '',
@@ -96,6 +111,12 @@ export default function Home() {
   }
 
   const filtered = useMemo(() => {
+    const sorters = {
+      newest: (a, b) => b.updatedAt - a.updatedAt,
+      oldest: (a, b) => a.updatedAt - b.updatedAt,
+      title: (a, b) => a.title.localeCompare(b.title),
+      class: (a, b) => Number(a.class) - Number(b.class) || b.updatedAt - a.updatedAt
+    };
     return writings
       .filter((w) => {
         if (filters.favOnly && !w.isFavorite) return false;
@@ -109,7 +130,7 @@ export default function Home() {
         }
         return true;
       })
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+      .sort(sorters[filters.sort] || sorters.newest);
   }, [writings, filters]);
 
   const filtersActive = filters.board || filters.cls || filters.type || filters.chapter;
@@ -135,6 +156,15 @@ export default function Home() {
     try { await api('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'presets', data: next }) }); } catch {}
   }
 
+  // Adds/updates one entry in her saved address book (Settings → Saved recipients), so a
+  // recurring official recipient (the Headmaster, the local BDO office, etc.) only needs its
+  // full address typed once and can be picked from a dropdown every time after that.
+  async function saveRecipient(entry) {
+    const next = [...recipients.filter((r) => r.id !== entry.id), entry];
+    setRecipients(next);
+    try { await api('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'recipients', data: next }) }); showToast('Saved to your recipients list.'); } catch (e) { showToast("Couldn't save — " + e.message); }
+  }
+
   async function handleSave(record) {
     try {
       if (record.id) {
@@ -156,40 +186,64 @@ export default function Home() {
 
   async function handleDelete(w) {
     setConfirmConfig({
-      title: 'Delete this writing?',
-      message: `"${w.title}" will be permanently removed. This cannot be undone.`,
-      okLabel: 'Delete',
+      title: 'Move to Trash?',
+      message: `"${w.title}" will move to the Trash, out of your shelf. Nothing is ever permanently erased — restore it any time from Settings → Trash, or undo right now.`,
+      okLabel: 'Move to Trash',
       run: async () => {
         try {
           await api(`/api/writings/${w.id}`, { method: 'DELETE' });
           setWritings((ws) => ws.filter((x) => x.id !== w.id));
           setViewingId(null);
-          showToast('Writing deleted.');
+          showUndoToast(`"${w.title}" moved to Trash.`, async () => {
+            try {
+              await api(`/api/writings/${w.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ restore: true }) });
+              setWritings((ws) => [w, ...ws]);
+              showToast('Restored to your shelf.');
+            } catch (e) {
+              showToast("Couldn't undo — " + e.message);
+            }
+          });
         } catch (e) {
-          showToast("Couldn't delete — " + e.message);
+          showToast("Couldn't move to Trash — " + e.message);
         }
       }
     });
   }
 
   async function handleBulkDelete() {
-    const ids = Array.from(selectedIds);
+    const list = selectedWritings;
+    if (!list.length) return;
     setConfirmConfig({
-      title: `Delete ${ids.length} writing${ids.length === 1 ? '' : 's'}?`,
-      message: 'These will be permanently removed. This cannot be undone.',
-      okLabel: 'Delete',
+      title: `Move ${list.length} ${list.length === 1 ? 'writing' : 'writings'} to Trash?`,
+      message: 'They will leave your shelf. Nothing is ever permanently erased — restore any of them any time from Settings → Trash, or undo right now.',
+      okLabel: 'Move to Trash',
       run: async () => {
-        try {
-          const res = await api('/api/writings', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
-          setWritings((ws) => ws.filter((x) => !selectedIds.has(x.id)));
-          setSelectMode(false);
-          setSelectedIds(new Set());
-          showToast(`Deleted ${res.deleted} writing${res.deleted === 1 ? '' : 's'}.`);
-        } catch (e) {
-          showToast("Couldn't delete — " + e.message);
-        }
+        const ids = list.map((w) => w.id);
+        setWritings((ws) => ws.filter((x) => !ids.includes(x.id)));
+        setSelectMode(false);
+        setSelectedIds(new Set());
+        const failures = [];
+        await Promise.all(ids.map((id) => api(`/api/writings/${id}`, { method: 'DELETE' }).catch(() => failures.push(id))));
+        showUndoToast(
+          failures.length ? `Moved ${ids.length - failures.length} to Trash — ${failures.length} failed.` : `Moved ${ids.length} to Trash.`,
+          async () => {
+            const restored = [];
+            await Promise.all(list.map((w) => api(`/api/writings/${w.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ restore: true }) }).then(() => restored.push(w)).catch(() => {})));
+            setWritings((ws) => [...restored, ...ws]);
+            showToast(`Restored ${restored.length} to your shelf.`);
+          }
+        );
       }
     });
+  }
+
+  async function handleBulkFavorite(makeFavorite) {
+    const list = selectedWritings;
+    if (!list.length) return;
+    const ids = list.map((w) => w.id);
+    setWritings((ws) => ws.map((w) => (ids.includes(w.id) ? { ...w, isFavorite: makeFavorite } : w)));
+    await Promise.all(ids.map((id) => api(`/api/writings/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isFavorite: makeFavorite }) }).catch(() => {})));
+    showToast(makeFavorite ? `Starred ${ids.length} ${ids.length === 1 ? 'writing' : 'writings'}.` : `Unstarred ${ids.length} ${ids.length === 1 ? 'writing' : 'writings'}.`);
   }
 
   const viewingWriting = writings.find((w) => w.id === viewingId) || null;
@@ -199,11 +253,7 @@ export default function Home() {
     <div id="app">
       <div className="app-header">
         <div className="app-icon">
-          <svg viewBox="0 0 48 48" fill="none">
-            <circle cx="24" cy="16" r="8" fill="#F2ECDB" />
-            <path d="M8 41c1-9 7-14 16-14s15 5 16 14" stroke="#F2ECDB" strokeWidth="3" fill="none" strokeLinecap="round" />
-            <rect x="15" y="27" width="18" height="4" rx="1.5" fill="#A3323D" />
-          </svg>
+          <img src="/icons/icon-192.png" alt="RK English" width={52} height={52} />
         </div>
         <div className="app-titles">
           <h1>RK English</h1>
@@ -247,8 +297,16 @@ export default function Home() {
             <div className="f-field"><label>Chapter</label>
               <input value={filters.chapter} onChange={(e) => setFilters((f) => ({ ...f, chapter: e.target.value }))} placeholder="e.g. The Passing Away…" />
             </div>
+            <div className="f-field"><label>Sort by</label>
+              <select value={filters.sort} onChange={(e) => setFilters((f) => ({ ...f, sort: e.target.value }))}>
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="title">Title A–Z</option>
+                <option value="class">Class (1 → 12)</option>
+              </select>
+            </div>
             <div className="filter-actions full">
-              <button className="link-btn" onClick={() => setFilters({ board: '', cls: '', type: '', chapter: '', q: filters.q, favOnly: false })}>Clear all filters</button>
+              <button className="link-btn" onClick={() => setFilters({ board: '', cls: '', type: '', chapter: '', q: filters.q, favOnly: false, sort: 'newest' })}>Clear all filters</button>
               <span className="credit-line">Made by Krishnendu © 2026</span>
             </div>
           </div>
@@ -278,7 +336,20 @@ export default function Home() {
       <div className="list-wrap">
         <div className="list-meta-row">
           <span>{loading ? 'Loading…' : `${filtered.length} ${filtered.length === 1 ? 'writing' : 'writings'}`}</span>
-          <div style={{ display: 'flex', gap: 14 }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            {!selectMode && filtersActive && filtered.length > 0 && (
+              <>
+                <button className="quick-share-btn" title="Download this filtered list as one PDF" onClick={() => exportPdf(filtered, templates)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 20h16" /></svg>
+                </button>
+                <button className="quick-share-btn wa" title="Send this filtered list on WhatsApp now" onClick={async () => {
+                  const r = await shareOnWhatsapp(filtered, templates);
+                  if (r.fallback) showToast("Your device doesn't support sending the file directly — a text summary opened in WhatsApp instead.");
+                }}>
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 00-8.5 15.2L2 22l4.9-1.3A10 10 0 1012 2z" /></svg>
+                </button>
+              </>
+            )}
             {selectMode && filtered.length > 0 && (
               <button className="select-mode-btn" onClick={() => setSelectedIds(new Set(filtered.map((w) => w.id)))}>
                 Select all {filtered.length}
@@ -299,7 +370,11 @@ export default function Home() {
         )}
         {!loading && !loadError && filtered.length === 0 && (
           <div className="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V4a2 2 0 00-2-2H6.5A2.5 2.5 0 004 4.5v15z" /></svg>
+            {writings.length === 0 ? (
+              <img src="/icons/icon-192.png" alt="" className="empty-mascot" />
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V4a2 2 0 00-2-2H6.5A2.5 2.5 0 004 4.5v15z" /></svg>
+            )}
             <h3>{writings.length === 0 ? 'Your shelf is empty' : 'Nothing matches'}</h3>
             <p>{writings.length === 0 ? 'Tap the + button to add the first writing — type it, or scan it from a book.' : 'Try clearing a filter or searching a different word.'}</p>
           </div>
@@ -321,8 +396,11 @@ export default function Home() {
           <span>{selectedIds.size} selected</span>
           <div className="bulk-actions">
             <button className="bb-btn" onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }}>Cancel</button>
-            <button className="bb-btn" onClick={handleBulkDelete} style={{ color: '#A3323D' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0l-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6" /></svg>Delete
+            <button className="bb-btn" title="Star all selected" onClick={() => handleBulkFavorite(true)}>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z" /></svg>
+            </button>
+            <button className="bb-btn" title="Move all selected to Trash" onClick={handleBulkDelete}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>
             </button>
             <button className="bb-btn" onClick={() => exportPdf(selectedWritings, templates)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 20h16" /></svg>PDF
@@ -343,6 +421,8 @@ export default function Home() {
           presets={presets}
           templates={templates}
           globalDefaults={globalDefaults}
+          recipients={recipients}
+          onSaveRecipient={saveRecipient}
           onSave={handleSave}
           onCancel={() => { setFormOpen(false); setEditingWriting(null); }}
           showToast={showToast}
@@ -361,7 +441,7 @@ export default function Home() {
         />
       )}
 
-      <Toast message={toast} />
+      <Toast message={toast} action={toastAction} />
       <ConfirmDialog config={confirmConfig} onCancel={() => setConfirmConfig(null)} onConfirm={() => { confirmConfig?.run?.(); setConfirmConfig(null); }} />
     </div>
   );

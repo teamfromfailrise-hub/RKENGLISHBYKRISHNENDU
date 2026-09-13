@@ -63,9 +63,9 @@ From here on, she just taps that icon. Everything she adds is saved permanently 
 ### Step 5 (optional) — if you'd already deployed the previous version
 
 Only needed if you ran an *older* `schema.sql` before this update: open the Neon SQL Editor again and run
-the contents of `migrations.sql`. It just adds one new column (`is_favorite`) and is safe to run even if
-you're not sure — it won't error or duplicate anything. A brand-new database doesn't need this; the current
-`schema.sql` already includes it.
+the contents of `migrations.sql`. It adds a few new columns (favourites, a recoverable Trash, and the
+"who is this official letter to" field) and is safe to run even if you're not sure — it won't error or
+duplicate anything. A brand-new database doesn't need this; the current `schema.sql` already includes it.
 
 ---
 
