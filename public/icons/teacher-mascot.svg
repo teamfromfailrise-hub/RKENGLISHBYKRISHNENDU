@@ -1,84 +1,86 @@
 <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2A4D78"/>
-      <stop offset="100%" stop-color="#122540"/>
+      <stop offset="0%" stop-color="#7C5CFF"/>
+      <stop offset="55%" stop-color="#5B3FE0"/>
+      <stop offset="100%" stop-color="#FF6FA5"/>
     </linearGradient>
-    <linearGradient id="sareeMain" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#C23B48"/>
-      <stop offset="100%" stop-color="#8F2530"/>
+    <linearGradient id="blouse" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#22D3C5"/>
+      <stop offset="100%" stop-color="#0FB3AE"/>
     </linearGradient>
-    <linearGradient id="sareePallu" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#E8A33D"/>
-      <stop offset="100%" stop-color="#C97F1F"/>
+    <linearGradient id="pallu" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFC94D"/>
+      <stop offset="100%" stop-color="#FF9F2E"/>
     </linearGradient>
     <radialGradient id="skin" cx="0.4" cy="0.35" r="0.75">
-      <stop offset="0%" stop-color="#F3C79B"/>
-      <stop offset="100%" stop-color="#E2A874"/>
+      <stop offset="0%" stop-color="#FBD3A6"/>
+      <stop offset="100%" stop-color="#F0B583"/>
     </radialGradient>
     <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#3A2A22"/>
-      <stop offset="100%" stop-color="#1B1310"/>
+      <stop offset="0%" stop-color="#3E2C22"/>
+      <stop offset="100%" stop-color="#231712"/>
+    </linearGradient>
+    <linearGradient id="stick" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#C98A45"/>
+      <stop offset="100%" stop-color="#8F5A26"/>
     </linearGradient>
   </defs>
 
   <!-- background -->
   <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="230" fill="#F2ECDB" opacity="0.06"/>
+  <circle cx="410" cy="90" r="120" fill="#ffffff" opacity="0.08"/>
+  <circle cx="80" cy="440" r="140" fill="#ffffff" opacity="0.07"/>
 
-  <!-- soft halo behind head -->
-  <circle cx="256" cy="228" r="168" fill="#F6EFDD" opacity="0.10"/>
+  <!-- sparkles for a "special" feel -->
+  <g fill="#FFF6D8" opacity="0.9">
+    <path d="M92 96 l6 16 16 6 -16 6 -6 16 -6 -16 -16 -6 16 -6 z"/>
+    <path d="M432 340 l5 13 13 5 -13 5 -5 13 -5 -13 -13 -5 13 -5 z"/>
+    <circle cx="420" cy="150" r="5"/>
+    <circle cx="70" cy="330" r="4.5"/>
+  </g>
 
-  <!-- shoulders / saree body -->
-  <path d="M96 460
+  <!-- pointer stick — drawn later, on top, so it's clearly visible past her shoulder -->
+
+  <!-- shoulders / blouse body -->
+  <path d="M96 462
            C96 358 166 300 256 300
-           C346 300 416 358 416 460
-           L416 470 C416 480 408 486 398 486
-           L114 486 C104 486 96 480 96 470 Z"
-        fill="url(#sareeMain)"/>
+           C346 300 416 358 416 462
+           L416 472 C416 482 408 488 398 488
+           L114 488 C104 488 96 482 96 472 Z"
+        fill="url(#blouse)"/>
 
   <!-- pallu drape over left shoulder -->
   <path d="M150 316
-           C140 360 150 420 128 470
-           C160 476 190 470 206 452
-           C214 410 206 356 196 320 Z"
-        fill="url(#sareePallu)"/>
-  <path d="M150 316 C140 360 150 420 128 470" stroke="#A85D14" stroke-width="4" fill="none" opacity="0.5"/>
+           C138 360 150 424 126 472
+           C160 478 192 472 208 452
+           C216 408 206 354 196 318 Z"
+        fill="url(#pallu)"/>
+  <path d="M150 316 C138 360 150 424 126 472" stroke="#D97A0E" stroke-width="4" fill="none" opacity="0.45"/>
 
-  <!-- border trim on saree neckline -->
-  <path d="M168 322 C200 348 312 348 344 322" stroke="#F4D889" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <!-- neckline trim -->
+  <path d="M168 322 C200 350 312 350 344 322" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.85"/>
 
-  <!-- book held at chest -->
-  <g transform="translate(196,392)">
-    <rect x="0" y="0" width="120" height="34" rx="4" fill="#F2ECDB" stroke="#8F6A2E" stroke-width="3"/>
-    <rect x="0" y="0" width="120" height="34" rx="4" fill="none" stroke="#8F6A2E" stroke-width="3"/>
-    <line x1="60" y1="2" x2="60" y2="32" stroke="#8F6A2E" stroke-width="3"/>
-    <line x1="10" y1="10" x2="50" y2="10" stroke="#B58A44" stroke-width="2.5"/>
-    <line x1="10" y1="18" x2="50" y2="18" stroke="#B58A44" stroke-width="2.5"/>
-    <line x1="70" y1="10" x2="110" y2="10" stroke="#B58A44" stroke-width="2.5"/>
-    <line x1="70" y1="18" x2="110" y2="18" stroke="#B58A44" stroke-width="2.5"/>
-  </g>
+  <!-- near hand, resting -->
+  <ellipse cx="176" cy="420" rx="15" ry="12" fill="#F0B583"/>
+  <rect x="166" y="410" width="18" height="9" rx="4.5" fill="#7C5CFF"/>
 
   <!-- neck -->
-  <rect x="228" y="252" width="56" height="46" rx="18" fill="#E2A874"/>
+  <rect x="228" y="252" width="56" height="46" rx="18" fill="#F0B583"/>
 
-  <!-- hair back / bun base -->
+  <!-- hair back -->
   <circle cx="256" cy="196" r="112" fill="url(#hair)"/>
 
   <!-- face -->
   <ellipse cx="256" cy="206" rx="92" ry="98" fill="url(#skin)"/>
 
-  <!-- ears -->
-  <ellipse cx="166" cy="214" rx="12" ry="16" fill="#E2A874"/>
-  <ellipse cx="346" cy="214" rx="12" ry="16" fill="#E2A874"/>
-  <!-- earrings -->
-  <circle cx="166" cy="228" r="5" fill="#E8B84A"/>
-  <circle cx="346" cy="228" r="5" fill="#E8B84A"/>
+  <!-- ears + colourful earrings -->
+  <ellipse cx="166" cy="214" rx="12" ry="16" fill="#F0B583"/>
+  <ellipse cx="346" cy="214" rx="12" ry="16" fill="#F0B583"/>
+  <circle cx="166" cy="230" r="6" fill="#FF4F81"/>
+  <circle cx="346" cy="230" r="6" fill="#FF4F81"/>
 
-  <!-- bun (drawn behind the fringe so it reads as hair gathered up, not a floating disc) -->
-  <circle cx="256" cy="108" r="34" fill="url(#hair)"/>
-
-  <!-- hair front / hairline framing face — smooth, no centre dip -->
+  <!-- hairline -->
   <path d="M148 196
            C144 130 190 96 256 96
            C322 96 368 130 364 196
@@ -86,61 +88,70 @@
            C300 148 212 148 207 130
            C174 138 148 160 148 196 Z"
         fill="url(#hair)"/>
-  <!-- soft centre parting, short so it doesn't split the fringe visually -->
-  <path d="M256 98 L256 118" stroke="#120C0A" stroke-width="4" stroke-linecap="round"/>
+  <path d="M256 98 L256 118" stroke="#180F0B" stroke-width="4" stroke-linecap="round"/>
 
-  <!-- side-swept locks framing the cheeks -->
-  <path d="M150 196 C142 224 146 252 160 272" stroke="#1B1310" stroke-width="13" fill="none" stroke-linecap="round"/>
-  <path d="M362 196 C370 224 366 252 352 272" stroke="#1B1310" stroke-width="13" fill="none" stroke-linecap="round"/>
+  <!-- side-swept locks -->
+  <path d="M150 196 C142 224 146 252 160 272" stroke="#231712" stroke-width="13" fill="none" stroke-linecap="round"/>
+  <path d="M362 196 C370 224 366 252 352 272" stroke="#231712" stroke-width="13" fill="none" stroke-linecap="round"/>
 
-  <!-- flower tucked into the bun -->
+  <!-- bun -->
+  <circle cx="256" cy="108" r="34" fill="url(#hair)"/>
+  <!-- colourful flower in the bun -->
   <g transform="translate(256,92)">
-    <circle r="7.5" fill="#F4D889"/>
-    <circle cx="-12" cy="5" r="7.5" fill="#EFC15C"/>
-    <circle cx="12" cy="5" r="7.5" fill="#EFC15C"/>
-    <circle cx="-7.5" cy="-10" r="7.5" fill="#EFC15C"/>
-    <circle cx="7.5" cy="-10" r="7.5" fill="#EFC15C"/>
-    <circle r="3.6" fill="#B5461F"/>
+    <circle r="8" fill="#FF6FA5"/>
+    <circle cx="-13" cy="5" r="8" fill="#FF4F81"/>
+    <circle cx="13" cy="5" r="8" fill="#FF4F81"/>
+    <circle cx="-8" cy="-11" r="8" fill="#FF4F81"/>
+    <circle cx="8" cy="-11" r="8" fill="#FF4F81"/>
+    <circle r="3.8" fill="#FFC94D"/>
   </g>
 
   <!-- bindi -->
-  <circle cx="256" cy="188" r="6.5" fill="#A3323D"/>
+  <circle cx="256" cy="188" r="6.5" fill="#FF4F2E"/>
 
   <!-- eyebrows -->
-  <path d="M206 196 C216 188 234 188 244 196" stroke="#2A1D16" stroke-width="6" fill="none" stroke-linecap="round"/>
-  <path d="M268 196 C278 188 296 188 306 196" stroke="#2A1D16" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M206 194 C216 185 234 185 244 194" stroke="#231712" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M268 194 C278 185 296 185 306 194" stroke="#231712" stroke-width="6" fill="none" stroke-linecap="round"/>
 
-  <!-- glasses -->
-  <g stroke="#3A2A22" stroke-width="5" fill="#F8F5EC" fill-opacity="0.35">
-    <circle cx="222" cy="220" r="28"/>
-    <circle cx="290" cy="220" r="28"/>
-    <line x1="250" y1="216" x2="262" y2="216" stroke-width="5"/>
-    <line x1="194" y1="212" x2="176" y2="206" stroke-width="4"/>
-    <line x1="318" y1="212" x2="336" y2="206" stroke-width="4"/>
+  <!-- bright round glasses -->
+  <g stroke="#00B4C9" stroke-width="5" fill="#FFFFFF" fill-opacity="0.3">
+    <circle cx="222" cy="222" r="29"/>
+    <circle cx="290" cy="222" r="29"/>
+    <line x1="251" y1="217" x2="261" y2="217" stroke-width="5"/>
+    <line x1="193" y1="213" x2="175" y2="206" stroke-width="4"/>
+    <line x1="319" y1="213" x2="337" y2="206" stroke-width="4"/>
   </g>
 
-  <!-- eyes -->
-  <circle cx="222" cy="222" r="7.5" fill="#2A1D16"/>
-  <circle cx="290" cy="222" r="7.5" fill="#2A1D16"/>
-  <circle cx="224.5" cy="219" r="2.4" fill="#fff"/>
-  <circle cx="292.5" cy="219" r="2.4" fill="#fff"/>
+  <!-- big cute eyes -->
+  <ellipse cx="222" cy="223" rx="9" ry="11" fill="#3A2417"/>
+  <ellipse cx="290" cy="223" rx="9" ry="11" fill="#3A2417"/>
+  <circle cx="225.5" cy="218.5" r="3" fill="#fff"/>
+  <circle cx="293.5" cy="218.5" r="3" fill="#fff"/>
+  <circle cx="219" cy="227" r="1.6" fill="#fff" opacity="0.85"/>
+  <circle cx="287" cy="227" r="1.6" fill="#fff" opacity="0.85"/>
 
   <!-- nose -->
-  <path d="M254 226 C252 240 248 250 256 254 C264 250 260 240 258 226" fill="#E2A874" opacity="0.55"/>
+  <path d="M254 228 C252 240 248 250 256 254 C264 250 260 240 258 228" fill="#EBA871" opacity="0.55"/>
 
-  <!-- warm smile -->
-  <path d="M220 264 C236 282 276 282 292 264" stroke="#7A3B2E" stroke-width="6" fill="none" stroke-linecap="round"/>
-  <path d="M228 268 C240 278 272 278 284 268 L282 274 C268 284 244 284 230 274 Z" fill="#B5544A"/>
+  <!-- big warm smile -->
+  <path d="M216 264 C234 286 278 286 296 264" stroke="#7A3B2E" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M224 268 C238 282 274 282 288 268 L286 276 C270 288 242 288 226 276 Z" fill="#FF6F87"/>
 
   <!-- cheeks -->
-  <circle cx="196" cy="242" r="13" fill="#E8896B" opacity="0.35"/>
-  <circle cx="316" cy="242" r="13" fill="#E8896B" opacity="0.35"/>
+  <circle cx="194" cy="242" r="14" fill="#FF8E8E" opacity="0.4"/>
+  <circle cx="318" cy="242" r="14" fill="#FF8E8E" opacity="0.4"/>
 
-  <!-- hands gently holding the book -->
-  <g transform="translate(196,392)">
-    <ellipse cx="-6" cy="30" rx="14" ry="11" fill="#E2A874"/>
-    <ellipse cx="126" cy="30" rx="14" ry="11" fill="#E2A874"/>
-    <rect x="-10" y="20" width="10" height="9" rx="4" fill="#E8B84A"/>
-    <rect x="120" y="20" width="10" height="9" rx="4" fill="#E8B84A"/>
+  <!-- colourful bangles near the resting hand -->
+  <g transform="translate(176,420)">
+    <rect x="-16" y="20" width="14" height="8" rx="4" fill="#FFC94D"/>
+    <rect x="-16" y="10" width="14" height="7" rx="3.5" fill="#22D3C5"/>
   </g>
+
+  <!-- pointer stick, held up and out past her shoulder — the clearest "teacher" cue -->
+  <line x1="332" y1="408" x2="454" y2="54" stroke="url(#stick)" stroke-width="15" stroke-linecap="round"/>
+  <circle cx="454" cy="54" r="9" fill="#6B4321"/>
+  <rect x="322" y="392" width="30" height="12" rx="6" fill="#5C3A18" transform="rotate(-71 337 398)"/>
+  <!-- gripping hand, drawn over the stick's base so it reads as "held" -->
+  <ellipse cx="330" cy="404" rx="17" ry="14" fill="#F0B583" transform="rotate(-20 330 404)"/>
+  <rect x="320" y="394" width="20" height="10" rx="5" fill="#FF4F81" transform="rotate(-20 330 404)"/>
 </svg>

@@ -209,7 +209,13 @@ export default function WritingForm({ existing, presets, templates, globalDefaul
         <div className="section-title">Type of writing</div>
         <div className="type-grid">
           {Object.entries(WRITING_TYPES).map(([k, v]) => (
-            <button key={k} type="button" className={`type-chip ${type === k ? 'active' : ''}`} onClick={() => changeType(k)}>
+            <button
+              key={k} type="button"
+              className={`type-chip ${type === k ? 'active' : ''}`}
+              style={type === k ? { background: v.color, borderColor: v.color } : { borderColor: v.color + '55' }}
+              onClick={() => changeType(k)}
+            >
+              <span className="type-chip-dot" style={{ background: type === k ? '#fff' : v.color }} />
               {v.label}
             </button>
           ))}

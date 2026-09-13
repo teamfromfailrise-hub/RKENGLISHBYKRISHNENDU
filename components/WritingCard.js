@@ -3,8 +3,9 @@ import { WRITING_TYPES } from '../lib/constants';
 
 export default function WritingCard({ w, selectMode, selected, onOpen, onToggle, onToggleFavorite }) {
   const snippet = (w.body || '').replace(/\s+/g, ' ').trim();
+  const typeColor = WRITING_TYPES[w.type]?.color || '#78716C';
   return (
-    <div className={`card type-${w.type}`} onClick={() => (selectMode ? onToggle(w.id) : onOpen(w.id))}>
+    <div className="card" style={{ borderLeftColor: typeColor }} onClick={() => (selectMode ? onToggle(w.id) : onOpen(w.id))}>
       {selectMode && (
         <div
           className={`card-check ${selected ? 'checked' : ''}`}
@@ -27,7 +28,7 @@ export default function WritingCard({ w, selectMode, selected, onOpen, onToggle,
           )}
         </div>
         <div className="card-tags">
-          <span className="tag type-tag">{WRITING_TYPES[w.type]?.label || w.type}</span>
+          <span className="tag type-tag" style={{ background: typeColor }}>{WRITING_TYPES[w.type]?.label || w.type}</span>
           <span className="tag">{w.board}</span>
           <span className="tag">Class {w.class}</span>
           {w.chapter && <span className="tag">{w.chapter}</span>}
